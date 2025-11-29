@@ -1,385 +1,627 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Generador aleatorio (Canvas) — Texto en recuadro animado</title>
-  <style>
-    :root{font-family: Inter, system-ui, Arial, sans-serif}
-    body{margin:0;display:flex;flex-direction:column;height:100vh}
-    #controls{display:flex;gap:10px;padding:12px;background:#0f172a;color:#fff;align-items:center}
-    #controls input[type=text]{padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);min-width:220px}
-    #controls button{padding:8px 12px;border-radius:6px;border:none;background:#06b6d4;color:#042;cursor:pointer}
-    #controls button.secondary{background:#94a3b8;color:#042}
-    #stage{flex:1;display:flex;align-items:center;justify-content:center;background:#111}
-    canvas{background:transparent;max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
-    .hint{color:#94a3b8;font-size:12px;margin-left:8px}
-    footer{padding:8px 12px;font-size:12px;color:#94a3b8;background:#071127}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Animador 3D de Texto - Vertical</title>
+<style>
+  :root{
+    --bg-dark: #0f1720;
+    --ui-bg: #0b1220;
+    --accent: #9ca3af;
+    --btn-bg: #111827;
+    --btn-text: #e6eef6;
+    --serious-palette-1: #0b3d91; /* tonos sobrios usados como base */
+    --serious-palette-2: #2d6a4f;
+    --serious-palette-3: #6b3f3f;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background: linear-gradient(180deg,var(--bg-dark), #08101a);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    color: #e6eef6;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  /* Layout vertical mobile */
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100dvh;
+    width:100vw;
+    gap: 8px;
+    padding: 8px;
+    box-sizing:border-box;
+  }
+
+  .canvas-wrap{
+    position:relative;
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:12px;
+    overflow:hidden;
+    background: #05060a;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+
+  canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    background: transparent;
+  }
+
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .input-area{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    width:100%;
+  }
+
+  input[type="text"]{
+    flex:1;
+    padding:14px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    color:var(--btn-text);
+    font-size:16px;
+    outline:none;
+  }
+
+  button{
+    border:0;
+    border-radius:12px;
+    padding:12px 14px;
+    background:var(--btn-bg);
+    color:var(--btn-text);
+    font-weight:700;
+    box-shadow: 0 4px 12px rgba(2,6,23,0.6);
+    cursor:pointer;
+  }
+
+  button:active{ transform: translateY(1px); }
+
+  .big-create{
+    background: linear-gradient(180deg,#111827,#0b1220);
+    font-size:18px;
+    padding:14px 18px;
+    flex:0 0 auto;
+  }
+
+  .small{
+    padding:10px 12px;
+    font-size:14px;
+  }
+
+  .note{
+    font-size:12px;
+    color:#98a0ab;
+    text-align:center;
+    margin-top:6px;
+  }
+
+  /* small responsive tweaks */
+  @media(min-width:760px){
+    .app{ max-width:420px; margin:12px auto; height:95vh; }
+  }
+</style>
 </head>
 <body>
-  <div id="controls">
-    <label style="display:flex;align-items:center;gap:8px">
-      <span>Texto:</span>
-      <input id="textInput" type="text" value="Hola mundo" />
-    </label>
-    <button id="generateBtn">Generar</button>
-    <button id="downloadBtn" class="secondary">Descargar animación (15s)</button>
-    <div class="hint">Duración: 15s • Cada "Generar" reinicia la animación y el lienzo</div>
-  </div>
+  <div class="app">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mainCanvas" width="720" height="1280" aria-label="Pantalla de animación"></canvas>
+    </div>
 
-  <div id="stage">
-    <canvas id="c"></canvas>
-  </div>
+    <div class="controls">
+      <div class="input-area">
+        <input id="textInput" type="text" placeholder="Escribe una palabra o frase..." maxlength="60" value="Casa" />
+        <button id="createBtn" class="big-create">Crear</button>
+      </div>
+      <div style="display:flex; gap:8px; margin-left:8px;">
+        <button id="downloadBtn" class="small">Descargar video</button>
+      </div>
+    </div>
 
-  <footer>Canvas real • Animaciones random para fondo, recuadro y texto • Grabador WebM</footer>
+    <div class="note">
+      Animación: 15s (loop). Cada pulsación en <strong>Crear</strong> genera un mix aleatorio de 3 animaciones simultáneas con porcentajes aleatorios.
+    </div>
+  </div>
 
 <script>
-// Config
-const DURATION = 15000; // 15 segundos en ms
-const FPS = 60;
+/*
+  Implementación:
+  - Canvas vertical responsive (usa tamaño físico 720x1280 por defecto, se escala con CSS)
+  - Al presionar Crear: genera configuración random (capas de texto, colores, texturas, mix de 3 animaciones)
+  - Animación: loop de 15s (t = performance.now() % 15000)
+  - descargar video: usa MediaRecorder de canvas.captureStream()
+  - Escalado del texto para que quepa: se mide con measureText y se escala
+*/
 
-// Canvas setup
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-function fitCanvas() {
-  const ratio = window.devicePixelRatio || 1;
-  const w = Math.min(window.innerWidth - 60, 1200);
-  const h = Math.min(window.innerHeight - 160, 700);
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  canvas.width = Math.round(w * ratio);
-  canvas.height = Math.round(h * ratio);
-  ctx.setTransform(ratio,0,0,ratio,0,0);
-}
-window.addEventListener('resize', fitCanvas);
-fitCanvas();
+(() => {
+  const canvas = document.getElementById('mainCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const createBtn = document.getElementById('createBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const input = document.getElementById('textInput');
 
-// UI
-const textInput = document.getElementById('textInput');
-const generateBtn = document.getElementById('generateBtn');
-const downloadBtn = document.getElementById('downloadBtn');
+  // Base physical size: portrait
+  const BASE_W = 720;
+  const BASE_H = 1280;
+  canvas.width = BASE_W;
+  canvas.height = BASE_H;
 
-let animationId = null;
-let animationStart = 0;
-let currentSpec = null; // random spec for this run
+  // State
+  let animationConfig = null;
+  let rafId = null;
+  let startTime = null;
+  const DURATION = 15000; // 15 seconds loop
+  let recording = { active: false, recorder: null, chunks: [] };
 
-// Helpers
-function rand(min, max){ return Math.random()*(max-min)+min }
-function randInt(min,max){ return Math.floor(rand(min,max+1)) }
-function pick(arr){ return arr[Math.floor(Math.random()*arr.length)] }
-function lerp(a,b,t){ return a + (b-a)*t }
-function easeInOutQuad(t){ return t<0.5?2*t*t: -1 + (4-2*t)*t }
-function hslToCss(h,s,l){ return `hsl(${h} ${s}% ${l}%)` }
+  // Fonts list (system fallback fonts)
+  const FONT_FAMILIES = [
+    "Inter", "Poppins", "Montserrat", "Segoe UI", "Roboto", "Helvetica Neue", "Arial Black", "Times New Roman", "Georgia"
+  ];
 
-// Create a random color
-function randomColor(hRange=[0,360], sRange=[40,90], lRange=[30,70]){
-  return {
-    h: randInt(hRange[0], hRange[1]),
-    s: randInt(sRange[0], sRange[1]),
-    l: randInt(lRange[0], lRange[1])
-  }
-}
-function colorCss(c){ return `hsl(${c.h} ${c.s}% ${c.l}%)` }
+  // Available animation types
+  const ANIMATIONS = [
+    "rotate",        // rotación
+    "float",         // flotación vertical (seno)
+    "horiz",         // desplazamiento horizontal
+    "shake",         // temblor rápido
+    "stretch",       // estiramiento (scaleX/scaleY)
+    "blink",         // parpadeo (opacidad)
+    "fly",           // desplazamiento con trayectoria curva
+    "wobble"         // ligera oscilación compuesta
+  ];
 
-// Create random animation spec (one-time per Generate click)
-function createSpec(text){
-  // background: either solid, radial gradient or animated stripes
-  const bgType = pick(['solid','gradient','stripes','noise']);
+  // Text layer count (number of visual layers forming 3D)
+  const LAYER_COUNT = 4;
 
-  const bg = {
-    type: bgType,
-    colors: [randomColor(), randomColor(), randomColor()],
-    angle: rand(0,360),
-    speed: rand(0.1,1.5) // affects subtle motion
-  }
+  // Utility: rand
+  const rnd = (a=0,b=1) => a + Math.random() * (b-a);
+  const rndInt = (a,b) => Math.floor(rnd(a,b+1));
 
-  // box (recuadro) spec
-  const box = {
-    xRel: rand(0.25,0.75),
-    yRel: rand(0.35,0.65),
-    wRel: rand(0.35,0.75),
-    hRel: rand(0.12,0.28),
-    round: rand(6,60),
-    color: randomColor([0,360],[30,90],[30,70]),
-    borderColor: randomColor([0,360],[20,60],[10,40]),
-    startTransform: {tx: rand(-80,80), ty: rand(-40,40), rot: rand(-20,20), scale: rand(0.7,1.3), opacity: rand(0.2,0.8)},
-    endTransform:   {tx: rand(-40,40), ty: rand(-20,20), rot: rand(-60,60), scale: rand(0.8,1.6), opacity: rand(0.4,1)}
-  }
-
-  // text spec
-  const fontFamilies = ['Inter','Arial','Verdana','Georgia','Impact','Segoe UI','Tahoma'];
-  const textSpec = {
-    content: text || 'Hola mundo',
-    fontFamily: pick(fontFamilies),
-    fontSize: rand(36,110),
-    color: randomColor([0,360],[40,100],[20,85]),
-    shadow: {x: rand(-12,12), y: rand(-12,12), blur: rand(6,30), color: randomColor([0,360],[10,60],[10,30])},
-    startTransform: {tx: rand(-120,120), ty: rand(-80,80), rot: rand(-45,45), scale: rand(0.6,1.6), opacity: rand(0.2,0.9)},
-    endTransform:   {tx: rand(-40,40), ty: rand(-30,30), rot: rand(-180,180), scale: rand(0.6,2.2), opacity: rand(0.4,1)}
-  }
-
-  // combined
-  return {bg, box, text: textSpec, duration: DURATION}
-}
-
-// Draw functions
-function drawBackground(spec, t){
-  const w = canvas.width/ (window.devicePixelRatio || 1);
-  const h = canvas.height/ (window.devicePixelRatio || 1);
-  ctx.save();
-  ctx.clearRect(0,0,w,h);
-
-  if(spec.bg.type === 'solid'){
-    ctx.fillStyle = colorCss(spec.bg.colors[0]);
-    ctx.fillRect(0,0,w,h);
-  } else if(spec.bg.type === 'gradient'){
-    // animate angle slightly
-    const angle = spec.bg.angle + spec.bg.speed * t * 20;
-    const x = Math.cos(angle*Math.PI/180);
-    const y = Math.sin(angle*Math.PI/180);
-
-    const g = ctx.createLinearGradient( (0.5-x)*w, (0.5-y)*h, (0.5+x)*w, (0.5+y)*h );
-    g.addColorStop(0, colorCss(spec.bg.colors[0]));
-    g.addColorStop(0.5, colorCss(spec.bg.colors[1]));
-    g.addColorStop(1, colorCss(spec.bg.colors[2]));
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,w,h);
-  } else if(spec.bg.type === 'stripes'){
-    // moving diagonal stripes
-    ctx.fillStyle = colorCss(spec.bg.colors[0]);
-    ctx.fillRect(0,0,w,h);
-    const stripeW = 40 + Math.abs(Math.sin(t*spec.bg.speed))*80;
-    const offset = (t * spec.bg.speed * 200) % (stripeW*2);
-    ctx.save();
-    ctx.translate(-offset,0);
-    for(let i=-2;i< w/stripeW + 10;i++){
-      ctx.fillStyle = i%2? colorCss(spec.bg.colors[1]) : colorCss(spec.bg.colors[2]);
-      ctx.beginPath();
-      ctx.rect(i*stripeW,0,stripeW/1.5,h);
-      ctx.fill();
+  // Create noise texture canvas
+  function generateNoisePattern(size=256, intensity=0.08, color='#ffffff') {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.fillStyle = 'transparent';
+    g.fillRect(0,0,size,size);
+    const img = g.createImageData(size,size);
+    const data = img.data;
+    for(let i=0;i<data.length;i+=4){
+      const v = Math.random() < intensity ? rndInt(40,200) : 0;
+      data[i] = v;
+      data[i+1] = v;
+      data[i+2] = v;
+      data[i+3] = v ? rndInt(8,28) : 0;
     }
-    ctx.restore();
-  } else {
-    // noise-ish: radial blends
-    const g = ctx.createRadialGradient(w*0.2,h*0.2,50,w*0.8,h*0.8,Math.max(w,h));
-    g.addColorStop(0, colorCss(spec.bg.colors[0]));
-    g.addColorStop(0.7, colorCss(spec.bg.colors[1]));
-    g.addColorStop(1, colorCss(spec.bg.colors[2]));
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,w,h);
-  }
-  ctx.restore();
-}
-
-function drawBox(spec, tProgress){
-  const w = canvas.width/ (window.devicePixelRatio || 1);
-  const h = canvas.height/ (window.devicePixelRatio || 1);
-
-  const bx = spec.box.xRel * w;
-  const by = spec.box.yRel * h;
-  const bw = spec.box.wRel * w;
-  const bh = spec.box.hRel * h;
-
-  const st = spec.box.startTransform;
-  const en = spec.box.endTransform;
-
-  // transform interpolation
-  const tx = lerp(st.tx, en.tx, tProgress);
-  const ty = lerp(st.ty, en.ty, tProgress);
-  const rot = lerp(st.rot, en.rot, tProgress) * Math.PI/180;
-  const scale = lerp(st.scale, en.scale, tProgress);
-  const opacity = lerp(st.opacity, en.opacity, tProgress);
-
-  ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.translate(bx + bw/2 + tx, by + bh/2 + ty);
-  ctx.rotate(rot);
-  ctx.scale(scale, scale);
-
-  // fill
-  ctx.beginPath();
-  roundRect(ctx, -bw/2, -bh/2, bw, bh, spec.box.round);
-  ctx.fillStyle = colorCss(spec.box.color);
-  ctx.fill();
-  // border
-  ctx.lineWidth = Math.max(2, Math.min(10, bw*0.01));
-  ctx.strokeStyle = colorCss(spec.box.borderColor);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function drawText(spec, tProgress){
-  const w = canvas.width/ (window.devicePixelRatio || 1);
-  const h = canvas.height/ (window.devicePixelRatio || 1);
-
-  const bx = spec.box.xRel * w;
-  const by = spec.box.yRel * h;
-  const bw = spec.box.wRel * w;
-  const bh = spec.box.hRel * h;
-
-  const st = spec.text.startTransform;
-  const en = spec.text.endTransform;
-  const tx = lerp(st.tx, en.tx, tProgress);
-  const ty = lerp(st.ty, en.ty, tProgress);
-  const rot = lerp(st.rot, en.rot, tProgress) * Math.PI/180;
-  const scale = lerp(st.scale, en.scale, tProgress);
-  const opacity = lerp(st.opacity, en.opacity, tProgress);
-
-  const content = spec.text.content;
-  // responsive font size base
-  let fontSize = spec.text.fontSize;
-  // clamp to available box
-  const maxWidth = bw * 0.9;
-  ctx.save();
-  ctx.translate(bx + bw/2 + tx, by + bh/2 + ty);
-  ctx.rotate(rot);
-  ctx.scale(scale, scale);
-  ctx.globalAlpha = opacity;
-
-  // shadow
-  const sh = spec.text.shadow;
-  ctx.shadowOffsetX = sh.x;
-  ctx.shadowOffsetY = sh.y;
-  ctx.shadowBlur = sh.blur;
-  ctx.shadowColor = colorCss(sh.color);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // adapt font size so text fits
-  ctx.font = `bold ${fontSize}px ${spec.text.fontFamily}`;
-  let measured = ctx.measureText(content).width;
-  if(measured > maxWidth){
-    const factor = maxWidth / measured;
-    fontSize = Math.floor(fontSize * factor);
-    ctx.font = `bold ${fontSize}px ${spec.text.fontFamily}`;
+    g.putImageData(img,0,0);
+    // tint it
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = color;
+    g.fillRect(0,0,size,size);
+    return g.createPattern(c, 'repeat');
   }
 
-  ctx.fillStyle = colorCss(spec.text.color);
-  ctx.fillText(content, 0, 0);
+  // Create stripe pattern
+  function generateStripePattern(size=64, color1='#ffffff', color2='rgba(255,255,255,0)') {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.fillStyle = color1;
+    g.fillRect(0,0,size,size);
+    g.clearRect(0,0,size/2,size);
+    g.fillStyle = color2;
+    g.fillRect(0,0,size/2,size);
+    return g.createPattern(c, 'repeat');
+  }
 
-  // small animated outline
-  ctx.lineWidth = Math.max(1, Math.floor(fontSize*0.06));
-  ctx.strokeStyle = `rgba(0,0,0,0.12)`;
-  ctx.strokeText(content,0,0);
+  // Choose serious palette color
+  function pickSeriousColor(){
+    const choices = ['#0b3d91','#2d6a4f','#6b3f3f','#22303b','#3b2b5b','#4a5568','#3f7a89','#5a4e3a'];
+    return choices[rndInt(0, choices.length-1)];
+  }
 
-  ctx.restore();
-}
+  // Setup random animation mix: pick 3 distinct animations and weights sum to 1
+  function randomAnimationMix(){
+    const picks = [];
+    while(picks.length < 3){
+      const candidate = ANIMATIONS[rndInt(0, ANIMATIONS.length-1)];
+      if(!picks.includes(candidate)) picks.push(candidate);
+    }
+    // random weights (positive) normalized
+    const raw = [rnd(), rnd(), rnd()];
+    const s = raw[0]+raw[1]+raw[2];
+    const weights = raw.map(v => v/s);
+    return picks.map((name,i) => ({
+      name,
+      weight: weights[i],
+      speed: rnd(0.6, 2.2), // base speed multiplier
+      dir: Math.random() < 0.5 ? -1 : 1
+    }));
+  }
 
-// Utility to draw rounded rect path
-function roundRect(ctx, x, y, w, h, r){
-  const rad = Math.min(r, Math.min(w/2,h/2));
-  ctx.beginPath();
-  ctx.moveTo(x+rad, y);
-  ctx.arcTo(x+w, y, x+w, y+h, rad);
-  ctx.arcTo(x+w, y+h, x, y+h, rad);
-  ctx.arcTo(x, y+h, x, y, rad);
-  ctx.arcTo(x, y, x+w, y, rad);
-  ctx.closePath();
-}
+  // Create config for a "create" event
+  function generateConfig(text){
+    const layers = [];
+    for(let i=0;i<LAYER_COUNT;i++){
+      const baseColor = pickSeriousColor();
+      const altColor = pickSeriousColor();
+      const patternType = rndInt(0,2); // 0 gradient,1 noise,2 stripes
+      let pattern = null;
+      if(patternType === 1) pattern = generateNoisePattern(128, rnd(0.03,0.12), baseColor);
+      else if(patternType === 2) pattern = generateStripePattern(64, baseColor, altColor);
+      const layer = {
+        offsetX: rnd(-18,18) * (i/(LAYER_COUNT-1)), // small offset for 3D effect
+        offsetY: rnd(-22,22) * (i/(LAYER_COUNT-1)),
+        color: baseColor,
+        strokeColor: altColor,
+        lineWidth: rnd(4, 18) * (1 + i*0.3),
+        blur: rnd(0, 14) * (i===0?1.8:1),
+        pattern,
+        font: FONT_FAMILIES[rndInt(0, FONT_FAMILIES.length-1)],
+        textureType: patternType
+      };
+      layers.push(layer);
+    }
 
-// Animation loop
-function startAnimation(spec){
-  cancelAnimationFrame(animationId);
-  animationStart = performance.now();
-  currentSpec = spec;
+    // Background design options
+    const bg = {
+      type: rndInt(0,3), // 0 gradient stripes,1 radial,2 noise,3 abstract shapes
+      colors: [pickSeriousColor(), pickSeriousColor(), pickSeriousColor()]
+    };
 
-  function frame(now){
-    const elapsed = now - animationStart;
-    const t = Math.min(1, elapsed / spec.duration);
-    const eased = easeInOutQuad(t);
+    // animation mix
+    const animMix = randomAnimationMix();
 
-    // draw background based on elapsed in seconds
-    drawBackground(spec, elapsed / 1000);
-    // draw box and text
-    drawBox(spec, eased);
-    drawText(spec, eased);
+    // final config
+    return { text, layers, bg, animMix, createdAt: Date.now() };
+  }
 
-    if(elapsed >= spec.duration){
-      // finish and stop loop (keeps final frame)
-      cancelAnimationFrame(animationId);
-      animationId = null;
+  // Fit text size: we want the text block to fit within a margin
+  function fitTextSize(cfg){
+    const maxWidth = canvas.width * 0.86;
+    const maxHeight = canvas.height * 0.7;
+    // try a range of sizes
+    let fontSize = Math.min(220, Math.floor(maxHeight * 0.6));
+    for(let i=0;i<50;i++){
+      ctx.font = `bold ${fontSize}px ${cfg.layers[0].font}`;
+      const metrics = ctx.measureText(cfg.text);
+      const w = metrics.width;
+      const h = fontSize; // approximate
+      if(w <= maxWidth && h <= maxHeight) break;
+      fontSize = Math.floor(fontSize * 0.94);
+      if(fontSize < 18) break;
+    }
+    return fontSize;
+  }
+
+  // Draw background according to config
+  function drawBackground(bgCfg, tNorm){
+    // tNorm: 0..1 within the 15s for subtle animated backgrounds
+    const g = ctx;
+    if(bgCfg.type === 0){
+      // moving gradient stripes
+      const grd = g.createLinearGradient(0,0,canvas.width,canvas.height);
+      const c1 = bgCfg.colors[0];
+      const c2 = bgCfg.colors[1];
+      const c3 = bgCfg.colors[2];
+      grd.addColorStop(0, c1);
+      grd.addColorStop(0.5 + 0.2*Math.sin(tNorm*2*Math.PI), c2);
+      grd.addColorStop(1, c3);
+      g.fillStyle = grd;
+      g.fillRect(0,0,canvas.width,canvas.height);
+      // subtle moving overlay
+      g.save();
+      g.globalAlpha = 0.08;
+      g.fillStyle = generateStripePattern(120, '#ffffffa0','rgba(255,255,255,0)');
+      g.translate( Math.sin(tNorm*2*Math.PI) * 80, 0 );
+      g.fillRect(-canvas.width, -canvas.height, canvas.width*3, canvas.height*3);
+      g.restore();
+    } else if(bgCfg.type === 1){
+      // radial pulse
+      const r = Math.hypot(canvas.width, canvas.height)/2;
+      const rg = g.createRadialGradient(canvas.width/2, canvas.height/2, r * (0.15 + 0.05*Math.sin(tNorm*2*Math.PI)), canvas.width/2, canvas.height/2, r);
+      rg.addColorStop(0, bgCfg.colors[0]);
+      rg.addColorStop(0.6, bgCfg.colors[1]);
+      rg.addColorStop(1, bgCfg.colors[2]);
+      g.fillStyle = rg;
+      g.fillRect(0,0,canvas.width,canvas.height);
+    } else if(bgCfg.type === 2){
+      // noise + subtle shapes
+      g.fillStyle = bgCfg.colors[0];
+      g.fillRect(0,0,canvas.width,canvas.height);
+      g.save();
+      g.globalAlpha = 0.12;
+      const p = generateNoisePattern(256, 0.06, bgCfg.colors[1]);
+      g.fillStyle = p;
+      g.fillRect(0,0,canvas.width,canvas.height);
+      g.restore();
+      // floating shapes
+      g.save();
+      g.globalAlpha = 0.08;
+      for(let i=0;i<6;i++){
+        const px = (i/6) * canvas.width + 60*Math.sin(tNorm*2*Math.PI*(i+1));
+        const py = canvas.height * (0.15 + 0.12*i);
+        g.beginPath();
+        g.ellipse(px, py, 120, 60 + 30*Math.sin(tNorm*2*Math.PI*(i+2)), 0, 0, 2*Math.PI);
+        g.fillStyle = bgCfg.colors[(i+2)%bgCfg.colors.length];
+        g.fill();
+      }
+      g.restore();
+    } else {
+      // abstract gradient with stripes
+      const grd = g.createLinearGradient(0,0,0,canvas.height);
+      grd.addColorStop(0, bgCfg.colors[0]);
+      grd.addColorStop(1, bgCfg.colors[2]);
+      g.fillStyle = grd;
+      g.fillRect(0,0,canvas.width,canvas.height);
+    }
+  }
+
+  // Compute combined transformation values from animMix and time
+  function computeAnimTransforms(mix, tMs){
+    // tMs: elapsed milliseconds in [0..DURATION)
+    const t = tMs / 1000;
+    const transforms = {
+      rotate: 0,
+      translateX: 0,
+      translateY: 0,
+      scaleX: 1,
+      scaleY: 1,
+      opacity: 1
+    };
+    // Each anim contributes according to weight and speed
+    for(const a of mix){
+      const w = a.weight;
+      const sp = a.speed;
+      const dir = a.dir;
+      const phase = t * sp * dir;
+      switch(a.name){
+        case 'rotate':
+          transforms.rotate += (Math.sin(phase*2*Math.PI) * 0.08 * w) ; // radians
+          break;
+        case 'float':
+          transforms.translateY += Math.sin(phase*2*Math.PI) * (40 * w);
+          break;
+        case 'horiz':
+          transforms.translateX += Math.sin(phase*2*Math.PI) * (70 * w);
+          break;
+        case 'shake':
+          transforms.translateX += (Math.random()*2-1) * (10 * w) * Math.sin(phase*2*Math.PI);
+          transforms.translateY += (Math.random()*2-1) * (10 * w) * Math.cos(phase*2*Math.PI);
+          break;
+        case 'stretch':
+          transforms.scaleX += (0.35 * Math.sin(phase*2*Math.PI)) * w;
+          transforms.scaleY -= (0.25 * Math.sin(phase*2*Math.PI)) * w;
+          break;
+        case 'blink':
+          transforms.opacity *= (0.6 + 0.4 * Math.abs(Math.sin(phase*2*Math.PI * 1.5))) ** (1 + w*2);
+          break;
+        case 'fly':
+          transforms.translateX += Math.sin(phase*2*Math.PI) * (80 * w);
+          transforms.translateY += Math.cos(phase*2*Math.PI) * (160 * w) - (60 * w * Math.sin(phase*2*Math.PI*0.5));
+          transforms.scaleX *= 0.98 + 0.06 * Math.sin(phase*2*Math.PI) * w;
+          transforms.scaleY *= 0.98 + 0.06 * Math.cos(phase*2*Math.PI) * w;
+          break;
+        case 'wobble':
+          transforms.rotate += Math.sin(phase*2*Math.PI) * (0.03 * w);
+          transforms.translateX += Math.sin(phase*2*Math.PI * 2) * (20 * w);
+          break;
+      }
+    }
+    return transforms;
+  }
+
+  // Main drawing routine
+  function renderFrame(timestamp){
+    if(!startTime) startTime = timestamp;
+    const elapsed = (timestamp - startTime) % DURATION;
+    const tNorm = elapsed / DURATION;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // background
+    drawBackground(animationConfig.bg, tNorm);
+
+    // compute animation transforms
+    const transforms = computeAnimTransforms(animationConfig.animMix, elapsed);
+
+    // Determine font size
+    const baseFontSize = fitTextSize(animationConfig);
+
+    // center
+    const centerX = canvas.width/2;
+    const centerY = canvas.height/2;
+
+    // text metrics for centering
+    ctx.font = `bold ${baseFontSize}px ${animationConfig.layers[0].font}`;
+    const metrics = ctx.measureText(animationConfig.text);
+    const textWidth = metrics.width;
+    const textHeight = baseFontSize;
+
+    // draw each layer with transforms & texture
+    for(let i=0;i<animationConfig.layers.length;i++){
+      const layer = animationConfig.layers[i];
+
+      const layerOffsetX = layer.offsetX;
+      const layerOffsetY = layer.offsetY + (i * 2); // small vertical separation for depth
+
+      ctx.save();
+
+      // apply global transform (center -> transform -> draw -> restore)
+      ctx.translate(centerX, centerY);
+      // apply computed transforms
+      ctx.translate(transforms.translateX, transforms.translateY);
+      ctx.rotate(transforms.rotate);
+      ctx.scale(transforms.scaleX, transforms.scaleY);
+
+      // apply layer offset (gives 3D stacking)
+      ctx.translate(layerOffsetX, layerOffsetY);
+
+      // opacity & blur
+      ctx.globalAlpha = 1 * transforms.opacity;
+      if(layer.blur > 0){
+        // emulate blur by shadow
+        ctx.shadowColor = layer.strokeColor + "66";
+        ctx.shadowBlur = layer.blur;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
+      // font & style
+      const sizeMultiplier = 1 + i*0.02;
+      ctx.font = `${layerOffsetY < 0 ? '700' : '800'} ${Math.floor(baseFontSize * sizeMultiplier)}px ${layer.font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // draw stroke/backdrop for depth
+      ctx.lineWidth = layer.lineWidth;
+      ctx.strokeStyle = layer.strokeColor;
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+
+      // fill style: either gradient or pattern
+      let fillStyle = null;
+      if(layer.textureType === 0){
+        const g = ctx.createLinearGradient(-textWidth/2, -textHeight/2, textWidth/2, textHeight/2);
+        g.addColorStop(0, layer.color);
+        g.addColorStop(1, layer.strokeColor);
+        fillStyle = g;
+      } else if(layer.textureType === 1 && layer.pattern){
+        fillStyle = layer.pattern;
+      } else if(layer.textureType === 2){
+        // stripes + gradient overlay
+        const g = ctx.createLinearGradient(-textWidth/2, -textHeight/2, textWidth/2, textHeight/2);
+        g.addColorStop(0, layer.color);
+        g.addColorStop(1, layer.strokeColor);
+        // create temporary pattern tinted
+        const p = generateStripePattern(48, layer.color, layer.strokeColor);
+        // composite: draw pattern into an offscreen then use globalAlpha later - but simple approach:
+        fillStyle = g;
+      } else {
+        fillStyle = layer.color;
+      }
+
+      ctx.fillStyle = fillStyle;
+
+      // Draw outline & fill for stronger 3D effect. First draw thick stroke slightly offset for shadow depth
+      ctx.save();
+      // outer stroke
+      ctx.lineWidth = Math.max(1, layer.lineWidth* (1 + i*0.2));
+      ctx.strokeStyle = layer.strokeColor;
+      ctx.strokeText(animationConfig.text, 0, 0);
+      ctx.restore();
+
+      // main fill
+      ctx.fillText(animationConfig.text, 0, 0);
+
+      // subtle top highlight for top-most layer
+      if(i === animationConfig.layers.length - 1){
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.12 * transforms.opacity;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(animationConfig.text, -Math.abs(Math.sin(tNorm*2*Math.PI))*4, -Math.abs(Math.cos(tNorm*2*Math.PI))*6);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // loop
+    rafId = requestAnimationFrame(renderFrame);
+  }
+
+  // Start animation cycle
+  function startAnimation(){
+    // stop previous raf
+    if(rafId) cancelAnimationFrame(rafId);
+    startTime = null;
+    rafId = requestAnimationFrame(renderFrame);
+  }
+
+  // Stop animation
+  function stopAnimation(){
+    if(rafId){
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  // Handler for Create button
+  createBtn.addEventListener('click', () => {
+    const txt = (input.value || '').trim();
+    if(!txt){
+      alert('Escribe una palabra o frase antes de crear.');
       return;
     }
-    animationId = requestAnimationFrame(frame);
-  }
-  animationId = requestAnimationFrame(frame);
-}
 
-// Generate handler — reinicia el canvas y crea una nueva animacion random
-function handleGenerate(){
-  // Reiniciar (detener animaciones previas)
-  if(animationId) cancelAnimationFrame(animationId);
-  // create spec and start
-  const spec = createSpec(textInput.value.trim() || ' ');
-  startAnimation(spec);
-}
+    // stop any active recording
+    if(recording.active){
+      stopRecording(true); // abort
+    }
 
-generateBtn.addEventListener('click', handleGenerate);
+    // generate new config & start animation
+    animationConfig = generateConfig(txt);
+    // ensure serious palette by slightly desaturating the colors
+    animationConfig.layers.forEach(l => {
+      // nothing extra for now
+    });
 
-// Start an initial animation
-handleGenerate();
+    // reset and start
+    startAnimation();
+  });
 
-// Recording / Download
-let recorder = null;
-let recordedChunks = [];
-
-function downloadBlob(blob, filename){
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 1000*60);
-}
-
-async function handleDownload(){
-  // If no currentSpec, just inform
-  if(!currentSpec){
-    alert('No hay animación para grabar. Pulsa Generar primero.');
-    return;
+  // Recording: download 15s video of canvas
+  function downloadBlob(blob, filename='animacion_canvas.webm'){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
-  // Ensure the animation is running from the start for a faithful recording.
-  // We'll restart the animation and record the next 15s.
-  if(animationId) cancelAnimationFrame(animationId);
-  recordedChunks = [];
+  function stopRecording(abort=false){
+    if(!recording.active) return;
+    const rec = recording.recorder;
+    if(abort){
+      try{ rec.stop(); }catch(e){}
+      recording.chunks = [];
+      recording.active = false;
+      downloadBtn.textContent = 'Descargar video';
+      return;
+    }
+    // stop normally, then assemble
+    rec.onstop = () => {
+      const blob = new Blob(recording.chunks, { type: 'video/webm' });
+      downloadBlob(blob, `animacion_${Date.now()}.webm`);
+      recording.chunks = [];
+      recording.recorder = null;
+      recording.active = false;
+      downloadBtn.textContent = 'Descargar video';
+    };
+    rec.stop();
+  }
 
-  // Restart animation timeline from zero using the same spec
-  const spec = currentSpec;
-  startAnimation(spec);
-
-  const stream = canvas.captureStream(FPS);
-  recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-
-  recorder.ondataavailable = function(e){ if(e.data && e.data.size) recordedChunks.push(e.data); };
-  recorder.onstop = function(){
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    downloadBlob(blob, `animacion_${Date.now()}.webm`);
-  };
-
-  recorder.start();
-  downloadBtn.disabled = true;
-  downloadBtn.textContent = 'Grabando... (15s)';
-
-  // stop recording after the animation duration
-  setTimeout(()=>{
-    if(recorder && recorder.state === 'recording') recorder.stop();
-    downloadBtn.disabled = false;
-    downloadBtn.textContent = 'Descargar animación (15s)';
-  }, DURATION + 200); // add tiny buffer
-}
-
-downloadBtn.addEventListener('click', handleDownload);
-
-// Accessibility: allow Enter to generate
-textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') handleGenerate(); });
-
-</script>
-</body>
-  </html>
-  
+  downloadBtn.addEventListener('click', async () => {
+    if(!animationConfig){
+      alert('Primero pulsa Crear par
