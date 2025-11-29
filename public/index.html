@@ -3,24 +3,118 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Animador 3D de Texto - Vertical (corregido)</title>
+<title>Animador 3D de Texto - Vertical (Corregido)</title>
 <style>
   :root{
-    --bg-dark: #0f1720;
-    --ui-bg: #0b1220;
-    --btn-bg: #111827;
+    --bg-dark: #101c2c; /* Azul oscuro de fondo */
+    --ui-bg: #111827;
+    --btn-bg: #1c52b5; /* Azul principal del botón */
     --btn-text: #e6eef6;
+    --border-color: #ffc107; /* Amarillo para bordes */
   }
-  html,body{ height:100%; margin:0; background: linear-gradient(180deg,var(--bg-dark), #08101a); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color: var(--btn-text); }
-  .app{ display:flex; flex-direction:column; height:100dvh; width:100vw; gap:8px; padding:8px; box-sizing:border-box; }
-  .canvas-wrap{ position:relative; flex:1 1 auto; display:flex; align-items:center; justify-content:center; border-radius:12px; overflow:hidden; background:#05060a; }
-  canvas{ width:100%; height:100%; display:block; background: transparent; }
-  .controls{ display:flex; gap:8px; align-items:center; justify-content:space-between; }
-  .input-area{ display:flex; gap:8px; align-items:center; width:100%; }
-  input[type="text"]{ flex:1; padding:14px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.06); background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color:var(--btn-text); font-size:16px; outline:none; }
-  button{ border:0; border-radius:12px; padding:12px 14px; background:var(--btn-bg); color:var(--btn-text); font-weight:700; box-shadow: 0 4px 12px rgba(2,6,23,0.6); cursor:pointer; }
-  .big-create{ background: linear-gradient(180deg,#111827,#0b1220); font-size:18px; padding:14px 18px; flex:0 0 auto; }
-  .small{ padding:10px 12px; font-size:14px; }
+  /* Estilo general del contenedor */
+  html,body{ 
+    height:100%; 
+    margin:0; 
+    background: linear-gradient(180deg,var(--bg-dark), #08101a); 
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
+    color: var(--btn-text); 
+  }
+  .app{ 
+    display:flex; 
+    flex-direction:column; 
+    height:100dvh; 
+    width:100vw; 
+    gap:8px; 
+    padding:8px; 
+    box-sizing:border-box; 
+    /* Borde amarillo en el contenedor principal */
+    border: 3px solid var(--border-color); 
+    border-radius: 16px;
+  }
+  .canvas-wrap{ 
+    position:relative; 
+    flex:1 1 auto; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    border-radius:12px; 
+    overflow:hidden; 
+    background:#05060a; 
+  }
+  canvas{ 
+    width:100%; 
+    height:100%; 
+    display:block; 
+    background: transparent; 
+  }
+
+  /* Nuevo contenedor de controles para mantener el orden de apilamiento */
+  .controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 4px; 
+  }
+
+  /* El campo de texto ahora está arriba de los botones */
+  .input-area{ 
+    display:flex; 
+    gap:8px; 
+    align-items:center; 
+    width:100%; 
+  }
+  
+  /* Estilo para el campo de texto (textarea) */
+  .input-area textarea{ 
+    flex:1; 
+    padding:14px 12px; 
+    border-radius:12px; 
+    /* Borde amarillo para el campo de texto */
+    border:3px solid var(--border-color); 
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); 
+    color:var(--btn-text); 
+    font-size:16px; 
+    outline:none; 
+    resize: none; 
+    min-height: 48px;
+    line-height: 1.2;
+    box-shadow: 0 0 8px rgba(255,193,7,0.4); /* Sombra para resaltar el borde */
+  }
+
+  /* Contenedor de botones (Debajo del campo de texto) */
+  .controls{ 
+    display:flex; 
+    gap:8px; 
+    align-items:center; 
+    justify-content:space-between; 
+    flex-direction: row-reverse; 
+  }
+
+  /* Estilo de botones: Azul con borde amarillo */
+  button{ 
+    border:3px solid var(--border-color); /* Borde amarillo */
+    border-radius:12px; 
+    padding:12px 14px; 
+    background:var(--btn-bg); 
+    color:var(--btn-text); 
+    font-weight:700; 
+    box-shadow: 0 4px 12px rgba(28,82,181,0.6); /* Sombra azul para profundidad */
+    cursor:pointer; 
+    transition: background 0.2s;
+    flex: 1 1 auto; 
+  }
+  button:hover { background: #1a489c; } 
+  
+  /* Botón grande */
+  .big-create{ 
+    background: linear-gradient(180deg, #1c52b5, #144095); /* Gradiente azul */
+    font-size:18px; 
+    padding:14px 18px; 
+  }
+  /* Botón pequeño */
+  .small{ padding:12px 14px; font-size:16px; }
+
   .note{ font-size:12px; color:#98a0ab; text-align:center; margin-top:6px; }
   @media(min-width:760px){ .app{ max-width:420px; margin:12px auto; height:95vh; } }
 </style>
@@ -31,18 +125,20 @@
       <canvas id="mainCanvas" width="720" height="1280" aria-label="Pantalla de animación"></canvas>
     </div>
 
-    <div class="controls">
+    <div class="controls-container"> 
+      
       <div class="input-area">
-        <input id="textInput" type="text" placeholder="Escribe una palabra o frase..." maxlength="60" value="Casa" />
-        <button id="createBtn" class="big-create">Crear</button>
+        <textarea id="textInput" placeholder="Escribe una palabra o frase..." maxlength="60">Texto</textarea>
       </div>
-      <div style="display:flex; gap:8px; margin-left:8px;">
+
+      <div class="controls">
+        <button id="createBtn" class="big-create">Crear</button>
         <button id="downloadBtn" class="small">Descargar video</button>
       </div>
-    </div>
 
-    <div class="note">
-      Animación: 15s (loop). Cada pulsación en <strong>Crear</strong> genera un mix aleatorio de 3 animaciones simultáneas con porcentajes aleatorios.
+      <div class="note">
+        Para salto de línea, use la tecla **Enter** en el teclado virtual o **Shift + Enter** en escritorio.
+      </div>
     </div>
   </div>
 
@@ -52,7 +148,7 @@
   const ctx = canvas.getContext('2d', { alpha: true });
   const createBtn = document.getElementById('createBtn');
   const downloadBtn = document.getElementById('downloadBtn');
-  const input = document.getElementById('textInput');
+  const input = document.getElementById('textInput'); 
 
   const BASE_W = 720;
   const BASE_H = 1280;
@@ -62,7 +158,7 @@
   let animationConfig = null;
   let rafId = null;
   let startTime = null;
-  const DURATION = 15000;
+  const DURATION = 20000; 
   let recording = { active:false, recorder:null, chunks:[] };
 
   const FONT_FAMILIES = ["Inter","Poppins","Montserrat","Segoe UI","Roboto","Helvetica Neue","Arial Black","Times New Roman","Georgia"];
@@ -97,8 +193,9 @@
     return ctx.createPattern(c, 'repeat');
   }
 
+  // Paleta de colores más neutra/seria
   function pickSeriousColor(){
-    const choices = ['#0b3d91','#2d6a4f','#6b3f3f','#22303b','#3b2b5b','#4a5568','#3f7a89','#5a4e3a'];
+    const choices = ['#1f2937','#374151','#0d47a1','#424242','#757575','#546e7a','#3d3a49','#8c5c5c'];
     return choices[rndInt(0, choices.length-1)];
   }
 
@@ -119,7 +216,7 @@
     for(let i=0;i<LAYER_COUNT;i++){
       const baseColor = pickSeriousColor();
       const altColor = pickSeriousColor();
-      const patternType = rndInt(0,2);
+      const patternType = rndInt(0,3); 
       let pattern = null;
       if(patternType===1) pattern = generateNoisePattern(128, rnd(0.03,0.12), baseColor);
       else if(patternType===2) pattern = generateStripePattern(64, baseColor, altColor);
@@ -140,18 +237,30 @@
     return { text, layers, bg, animMix, createdAt: Date.now() };
   }
 
-  // compute drawing coords using logical width/height (BASE_W, BASE_H)
+  // Soporte para múltiples líneas (texto vertical)
   function fitTextSize(cfg){
+    const lines = cfg.text.split('\n').filter(l => l.trim() !== '');
+    if (lines.length === 0) return 0;
+
     const maxWidth = BASE_W * 0.86;
-    const maxHeight = BASE_H * 0.7;
-    let fontSize = Math.min(220, Math.floor(maxHeight * 0.6));
+    const maxHeight = BASE_H * 0.9; 
+
+    let fontSize = Math.min(200, Math.floor(maxHeight / lines.length)); 
+    let maxLineW = 0;
+    
     ctx.save();
     for(let i=0;i<60;i++){
-      ctx.font = `bold ${fontSize}px ${cfg.layers[0].font}`;
-      const w = ctx.measureText(cfg.text).width;
-      if(w <= maxWidth && fontSize <= maxHeight) break;
-      fontSize = Math.floor(fontSize * 0.94);
-      if(fontSize < 18) break;
+        ctx.font = `bold ${fontSize}px ${cfg.layers[0].font}`;
+        maxLineW = 0;
+        lines.forEach(line => {
+            const w = ctx.measureText(line).width;
+            if(w > maxLineW) maxLineW = w;
+        });
+
+        if(maxLineW <= maxWidth && (fontSize * lines.length * 1.2) <= maxHeight) break; 
+        
+        fontSize = Math.floor(fontSize * 0.94);
+        if(fontSize < 18) break;
     }
     ctx.restore();
     return fontSize;
@@ -209,6 +318,7 @@
     }
   }
 
+  // Animaciones más livianas/reducidas
   function computeAnimTransforms(mix, tMs){
     const t = tMs/1000;
     const transforms = { rotate:0, translateX:0, translateY:0, scaleX:1, scaleY:1, opacity:1 };
@@ -218,14 +328,14 @@
       const dir = a.dir;
       const phase = t * sp * dir;
       switch(a.name){
-        case 'rotate': transforms.rotate += (Math.sin(phase*2*Math.PI) * 0.08 * w); break;
-        case 'float': transforms.translateY += Math.sin(phase*2*Math.PI) * (40 * w); break;
-        case 'horiz': transforms.translateX += Math.sin(phase*2*Math.PI) * (70 * w); break;
-        case 'shake': transforms.translateX += (Math.random()*2-1) * (10 * w) * Math.sin(phase*2*Math.PI); transforms.translateY += (Math.random()*2-1) * (10 * w) * Math.cos(phase*2*Math.PI); break;
-        case 'stretch': transforms.scaleX += (0.35 * Math.sin(phase*2*Math.PI)) * w; transforms.scaleY -= (0.25 * Math.sin(phase*2*Math.PI)) * w; break;
-        case 'blink': transforms.opacity *= (0.6 + 0.4 * Math.abs(Math.sin(phase*2*Math.PI * 1.5))) ** (1 + w*2); break;
-        case 'fly': transforms.translateX += Math.sin(phase*2*Math.PI) * (80 * w); transforms.translateY += Math.cos(phase*2*Math.PI) * (160 * w) - (60 * w * Math.sin(phase*2*Math.PI*0.5)); transforms.scaleX *= 0.98 + 0.06 * Math.sin(phase*2*Math.PI) * w; transforms.scaleY *= 0.98 + 0.06 * Math.cos(phase*2*Math.PI) * w; break;
-        case 'wobble': transforms.rotate += Math.sin(phase*2*Math.PI) * (0.03 * w); transforms.translateX += Math.sin(phase*2*Math.PI * 2) * (20 * w); break;
+        case 'rotate': transforms.rotate += (Math.sin(phase*2*Math.PI) * 0.04 * w); break; 
+        case 'float': transforms.translateY += Math.sin(phase*2*Math.PI) * (25 * w); break; 
+        case 'horiz': transforms.translateX += Math.sin(phase*2*Math.PI) * (30 * w); break; 
+        case 'shake': transforms.translateX += (Math.random()*2-1) * (5 * w) * Math.sin(phase*2*Math.PI); transforms.translateY += (Math.random()*2-1) * (5 * w) * Math.cos(phase*2*Math.PI); break; 
+        case 'stretch': transforms.scaleX += (0.2 * Math.sin(phase*2*Math.PI)) * w; transforms.scaleY -= (0.15 * Math.sin(phase*2*Math.PI)) * w; break; 
+        case 'blink': transforms.opacity *= (0.7 + 0.3 * Math.abs(Math.sin(phase*2*Math.PI * 1.5))) ** (1 + w*2); break; 
+        case 'fly': transforms.translateX += Math.sin(phase*2*Math.PI) * (40 * w); transforms.translateY += Math.cos(phase*2*Math.PI) * (80 * w) - (30 * w * Math.sin(phase*2*Math.PI*0.5)); transforms.scaleX *= 0.99 + 0.03 * Math.sin(phase*2*Math.PI) * w; transforms.scaleY *= 0.99 + 0.03 * Math.cos(phase*2*Math.PI) * w; break; 
+        case 'wobble': transforms.rotate += Math.sin(phase*2*Math.PI) * (0.015 * w); transforms.translateX += Math.sin(phase*2*Math.PI * 2) * (10 * w); break; 
       }
     }
     return transforms;
@@ -241,74 +351,88 @@
     drawBackground(animationConfig.bg, tNorm);
     const transforms = computeAnimTransforms(animationConfig.animMix, elapsed);
     const baseFontSize = fitTextSize(animationConfig);
+
+    const lines = animationConfig.text.split('\n').filter(l => l.trim() !== '');
+    const numLines = lines.length;
+    if(numLines === 0) {
+        rafId = requestAnimationFrame(renderFrame);
+        return;
+    }
+
     const centerX = BASE_W/2;
     const centerY = BASE_H/2;
+    
+    const lineHeight = baseFontSize * 1.2; 
+    const totalTextHeight = lineHeight * numLines;
+    const initialY = centerY - (totalTextHeight / 2) + (lineHeight / 2);
 
-    // draw layers
+
     for(let i=0;i<animationConfig.layers.length;i++){
-      const layer = animationConfig.layers[i];
-      const layerOffsetX = layer.offsetX;
-      const layerOffsetY = layer.offsetY + (i * 2);
+        const layer = animationConfig.layers[i];
+        const layerOffsetX = layer.offsetX;
+        const layerOffsetY = layer.offsetY + (i * 2);
 
-      ctx.save();
-
-      // move to center, apply global transforms, then layer offsets
-      ctx.translate(centerX, centerY);
-      ctx.translate(transforms.translateX, transforms.translateY);
-      ctx.rotate(transforms.rotate);
-      ctx.scale(transforms.scaleX, transforms.scaleY);
-      ctx.translate(layerOffsetX, layerOffsetY);
-
-      ctx.globalAlpha = 1 * transforms.opacity;
-      if(layer.blur > 0){
-        ctx.shadowColor = layer.strokeColor + "66";
-        ctx.shadowBlur = layer.blur;
-      } else ctx.shadowBlur = 0;
-
-      const sizeMultiplier = 1 + i*0.02;
-      ctx.font = `${layerOffsetY < 0 ? '700' : '800'} ${Math.floor(baseFontSize * sizeMultiplier)}px ${layer.font}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      ctx.lineWidth = layer.lineWidth;
-      ctx.strokeStyle = layer.strokeColor;
-      ctx.lineJoin = 'round';
-      ctx.miterLimit = 2;
-
-      let fillStyle = null;
-      const metrics = ctx.measureText(animationConfig.text);
-      const textWidth = metrics.width;
-      const textHeight = Math.floor(baseFontSize * sizeMultiplier);
-
-      if(layer.textureType === 0){
-        const g = ctx.createLinearGradient(-textWidth/2, -textHeight/2, textWidth/2, textHeight/2);
-        g.addColorStop(0, layer.color);
-        g.addColorStop(1, layer.strokeColor);
-        fillStyle = g;
-      } else if(layer.textureType === 1 && layer.pattern){
-        fillStyle = layer.pattern;
-      } else if(layer.textureType === 2){
-        const g = ctx.createLinearGradient(-textWidth/2, -textHeight/2, textWidth/2, textHeight/2);
-        g.addColorStop(0, layer.color);
-        g.addColorStop(1, layer.strokeColor);
-        fillStyle = g;
-      } else fillStyle = layer.color;
-
-      ctx.fillStyle = fillStyle;
-      ctx.lineWidth = Math.max(1, layer.lineWidth * (1 + i*0.2));
-      ctx.strokeText(animationConfig.text, 0, 0);
-      ctx.fillText(animationConfig.text, 0, 0);
-
-      if(i === animationConfig.layers.length - 1){
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = 0.12 * transforms.opacity;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(animationConfig.text, -Math.abs(Math.sin(tNorm*2*Math.PI))*4, -Math.abs(Math.cos(tNorm*2*Math.PI))*6);
-        ctx.restore();
-      }
 
-      ctx.restore();
+        ctx.translate(centerX, centerY);
+        ctx.translate(transforms.translateX, transforms.translateY);
+        ctx.rotate(transforms.rotate);
+        ctx.scale(transforms.scaleX, transforms.scaleY);
+
+        ctx.globalAlpha = 1 * transforms.opacity;
+        if(layer.blur > 0){
+            ctx.shadowColor = layer.strokeColor + "66";
+            ctx.shadowBlur = layer.blur;
+        } else ctx.shadowBlur = 0;
+
+        const sizeMultiplier = 1 + i*0.02;
+        ctx.font = `${layerOffsetY < 0 ? '700' : '800'} ${Math.floor(baseFontSize * sizeMultiplier)}px ${layer.font}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+
+        
+        lines.forEach((line, index) => {
+            const yPos = initialY - centerY + (index * lineHeight); 
+
+            const finalX = layerOffsetX;
+            const finalY = yPos + layerOffsetY;
+
+
+            let fillStyle = null;
+            const metrics = ctx.measureText(line);
+            const textWidth = metrics.width;
+            const textHeight = Math.floor(baseFontSize * sizeMultiplier);
+            
+            if(layer.textureType === 0 || layer.textureType === 2){
+                const g = ctx.createLinearGradient(-textWidth/2, finalY - textHeight/2, textWidth/2, finalY + textHeight/2);
+                g.addColorStop(0, layer.color);
+                g.addColorStop(1, layer.strokeColor);
+                fillStyle = g;
+            } else if(layer.textureType === 1 && layer.pattern){
+                fillStyle = layer.pattern;
+            } else fillStyle = layer.color;
+
+            ctx.fillStyle = fillStyle;
+            ctx.lineWidth = Math.max(1, layer.lineWidth * (1 + i*0.2));
+            ctx.strokeStyle = layer.strokeColor;
+
+            ctx.strokeText(line, finalX, finalY);
+            ctx.fillText(line, finalX, finalY);
+
+            // Efecto de luz más brillante
+            if(i === animationConfig.layers.length - 1){
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = 0.2 * transforms.opacity; 
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(line, finalX - Math.abs(Math.sin(tNorm*2*Math.PI))*4, finalY - Math.abs(Math.cos(tNorm*2*Math.PI))*6);
+                ctx.restore();
+            }
+        });
+
+        ctx.restore();
     }
 
     rafId = requestAnimationFrame(renderFrame);
@@ -327,12 +451,20 @@
   createBtn.addEventListener('click', () => {
     const txt = (input.value || '').trim();
     if(!txt){ alert('Escribe una palabra o frase antes de crear.'); return; }
-    if(recording.active){ stopRecording(true); }
+    
+    if(recording.active){ 
+        if(confirm('Hay una grabación en curso. ¿Deseas detenerla y generar una nueva animación?')) {
+            try{ recording.recorder.stop(); }catch(e){} 
+            recording.chunks = [];
+            recording.active = false;
+            downloadBtn.textContent = 'Descargar video';
+        } else return;
+    }
     animationConfig = generateConfig(txt);
     startAnimation();
   });
 
-  function downloadBlob(blob, filename='animacion_canvas.webm'){
+  function downloadBlob(blob, filename='animacion_canvas.mp4'){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -343,71 +475,100 @@
     URL.revokeObjectURL(url);
   }
 
-  function stopRecording(abort=false){
-    if(!recording.active) return;
-    const rec = recording.recorder;
-    if(abort){
-      try{ rec.stop(); }catch(e){}
-      recording.chunks = [];
-      recording.active = false;
-      downloadBtn.textContent = 'Descargar video';
-      return;
-    }
-    rec.onstop = () => {
-      const blob = new Blob(recording.chunks, { type: 'video/webm' });
-      downloadBlob(blob, `animacion_${Date.now()}.webm`);
-      recording.chunks = [];
-      recording.recorder = null;
-      recording.active = false;
-      downloadBtn.textContent = 'Descargar video';
-    };
-    rec.stop();
-  }
+  // Lógica de grabación con pausa, MP4 forzado en Chrome y reanudación
+  function startRecording(fps) {
+    if(recording.active) return;
+    
+    // 1. PAUSAR LA ANIMACIÓN VISIBLE
+    stopAnimation(); 
 
-  downloadBtn.addEventListener('click', async () => {
-    if(!animationConfig){ alert('Primero pulsa Crear para generar la animación que quieres descargar.'); return; }
-    if(recording.active){
-      if(confirm('Hay una grabación en curso. ¿Cancelar y reiniciar?')) stopRecording(true); else return;
-    }
-    const fps = 30;
     const stream = canvas.captureStream(fps);
-    const options = { mimeType: 'video/webm;codecs=vp9' };
-    try {
-      const mediaRecorder = new MediaRecorder(stream, options);
-      recording.recorder = mediaRecorder;
-      recording.chunks = [];
-      recording.active = true;
-      mediaRecorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) recording.chunks.push(e.data); };
-      mediaRecorder.start(250);
-      downloadBtn.textContent = 'Grabando...';
-      setTimeout(() => { if(recording.active) stopRecording(false); }, DURATION + 250);
-    } catch(err){
-      console.error('MediaRecorder error:', err);
-      alert('Tu navegador no soporta MediaRecorder con el codec solicitado. Prueba en Chrome/Edge/Firefox en escritorio o usa "Grabar pantalla".');
-    }
-  });
+    
+    // 2. FORZAR MP4 para Chrome, con fallback a WebM/VP8
+    let options = { mimeType: 'video/webm;codecs=vp9' }; 
+    const isChrome = navigator.userAgent.includes('Chrome');
 
-  // DPI / scale handling: set canvas backing store to devicePixelRatio and map drawing to logical coords BASE_W x BASE_H
+    if (isChrome && MediaRecorder.isTypeSupported('video/mp4; codecs=avc1.42001E')) {
+        options = { mimeType: 'video/mp4; codecs=avc1.42001E' }; 
+    } else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) {
+        options = { mimeType: 'video/webm; codecs=vp8' };
+    }
+    
+    try {
+        const mediaRecorder = new MediaRecorder(stream, options);
+        recording.recorder = mediaRecorder;
+        recording.chunks = [];
+        recording.active = true;
+
+        mediaRecorder.ondataavailable = (e) => { 
+            if(e.data && e.data.size > 0) recording.chunks.push(e.data); 
+        };
+        
+        mediaRecorder.onstop = () => {
+            if (recording.chunks.length > 0) {
+                const blob = new Blob(recording.chunks, { type: options.mimeType });
+                const ext = options.mimeType.includes('mp4') ? 'mp4' : (options.mimeType.includes('webm') ? 'webm' : 'dat');
+                downloadBlob(blob, `animacion_${Date.now()}.${ext}`);
+            }
+            recording.chunks = [];
+            recording.recorder = null;
+            recording.active = false;
+            downloadBtn.textContent = 'Descargar video';
+            
+            // 3. REANUDAR LA ANIMACIÓN
+            startAnimation(); 
+        };
+
+        mediaRecorder.start(250); 
+        downloadBtn.textContent = 'Grabando... Pulsa para guardar';
+        
+        setTimeout(() => { 
+            if(recording.active) mediaRecorder.stop();
+        }, DURATION + 500); 
+        
+    } catch(err){
+        console.error('MediaRecorder error:', err);
+        alert(`Tu navegador no soporta MediaRecorder con el codec solicitado (${options.mimeType}).`);
+        recording.active = false;
+        downloadBtn.textContent = 'Descargar video';
+        startAnimation(); 
+    }
+}
+
+
+downloadBtn.addEventListener('click', async () => {
+    if(!animationConfig){ 
+        alert('Primero pulsa Crear para generar la animación que quieres descargar.'); 
+        return; 
+    }
+    
+    if(recording.active){
+        if(recording.recorder) recording.recorder.stop();
+        return; 
+    }
+    
+    const fps = 30; 
+    startRecording(fps);
+});
+
+
+  // Manejo de DPI
   function adjustDPI(){
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = Math.round(BASE_W * ratio);
     canvas.height = Math.round(BASE_H * ratio);
     canvas.style.width = '100%';
     canvas.style.height = '100%';
-    // reset transform and scale so that drawing uses logical coordinates
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
-  // initialize
   adjustDPI();
   window.addEventListener('resize', () => { adjustDPI(); });
 
-  // init default anim
-  animationConfig = generateConfig(input.value || 'Casa');
+  animationConfig = generateConfig(input.value || 'Texto');
   startAnimation();
-  input.addEventListener('keydown', (e) => { if(e.key === 'Enter') createBtn.click(); });
-
-})();
-</script>
-</body>
-</html>
+  
+  // Captura Enter y permite Shift+Enter para salto de línea
+  input.addEventListener('keydown', (e) => { 
+    if(e.key === 'Enter' && !e.shiftKey) {
+        e.
