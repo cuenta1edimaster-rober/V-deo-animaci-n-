@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Animador 3D de Texto - Vertical (corregido)</title>
+<style>
+  :root{
+    --bg-dark: #0f1720;
+    --ui-bg: #0b1220;
+    --btn-bg: #111827;
+    --btn-text: #e6eef6;
+  }
+  html,body{ height:100%; margin:0; background: linear-gradient(180deg,var(--bg-dark), #08101a); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color: var(--btn-text); }
+  .app{ display:flex; flex-direction:column; height:100dvh; width:100vw; gap:8px; padding:8px; box-sizing:border-box; }
+  .canvas-wrap{ position:relative; flex:1 1 auto; display:flex; align-items:center; justify-content:center; border-radius:12px; overflow:hidden; background:#05060a; }
+  canvas{ width:100%; height:100%; display:block; background: transparent; }
+  .controls{ display:flex; gap:8px; align-items:center; justify-content:space-between; }
+  .input-area{ display:flex; gap:8px; align-items:center; width:100%; }
+  input[type="text"]{ flex:1; padding:14px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.06); background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color:var(--btn-text); font-size:16px; outline:none; }
+  button{ border:0; border-radius:12px; padding:12px 14px; background:var(--btn-bg); color:var(--btn-text); font-weight:700; box-shadow: 0 4px 12px rgba(2,6,23,0.6); cursor:pointer; }
+  .big-create{ background: linear-gradient(180deg,#111827,#0b1220); font-size:18px; padding:14px 18px; flex:0 0 auto; }
+  .small{ padding:10px 12px; font-size:14px; }
+  .note{ font-size:12px; color:#98a0ab; text-align:center; margin-top:6px; }
+  @media(min-width:760px){ .app{ max-width:420px; margin:12px auto; height:95vh; } }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mainCanvas" width="720" height="1280" aria-label="Pantalla de animación"></canvas>
+    </div>
+
+    <div class="controls">
+      <div class="input-area">
+        <input id="textInput" type="text" placeholder="Escribe una palabra o frase..." maxlength="60" value="Casa" />
+        <button id="createBtn" class="big-create">Crear</button>
+      </div>
+      <div style="display:flex; gap:8px; margin-left:8px;">
+        <button id="downloadBtn" class="small">Descargar video</button>
+      </div>
+    </div>
+
+    <div class="note">
+      Animación: 15s (loop). Cada pulsación en <strong>Crear</strong> genera un mix aleatorio de 3 animaciones simultáneas con porcentajes aleatorios.
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('mainCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const createBtn = document.getElementById('createBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const input = document.getElementById('textInput');
+
+  const BASE_W = 720;
+  const BASE_H = 1280;
+  canvas.width = BASE_W;
+  canvas.height = BASE_H;
+
+  let animationConfig = null;
+  let rafId = null;
+  let startTime = null;
+  const DURATION = 15000;
+  let recording = { active:false, recorder:null, chunks:[] };
+
+  const FONT_FAMILIES = ["Inter","Poppins","Montserrat","Segoe UI","Roboto","Helvetica Neue","Arial Black","Times New Roman","Georgia"];
+  const ANIMATIONS = ["rotate","float","horiz","shake","stretch","blink","fly","wobble"];
+  const LAYER_COUNT = 4;
+  const rnd = (a=0,b=1) => a + Math.random() * (b-a);
+  const rndInt = (a,b) => Math.floor(rnd(a,b+1));
+
+  function generateNoisePattern(size=256, intensity=0.08, color='#ffffff'){
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const img = g.createImageData(size,size);
+    for(let i=0;i<img.data.length;i+=4){
+      const v = Math.random() < intensity ? rndInt(40,200) : 0;
+      img.data[i]=v; img.data[i+1]=v; img.data[i+2]=v; img.data[i+3]= v ? rndInt(8,28) : 0;
+    }
+    g.putImageData(img,0,0);
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = color;
+    g.fillRect(0,0,size,size);
+    return ctx.createPattern(c, 'repeat');
+  }
+
+  function generateStripePattern(size=64, color1='#ffffff', color2='rgba(255,255,255,0)'){
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.fillStyle = color1; g.fillRect(0,0,size,size);
+    g.clearRect(0,0,size/2,size);
+    g.fillStyle = color2; g.fillRect(0,0,size/2,size);
+    return ctx.createPattern(c, 'repeat');
+  }
+
+  function pickSeriousColor(){
+    const choices = ['#0b3d91','#2d6a4f','#6b3f3f','#22303b','#3b2b5b','#4a5568','#3f7a89','#5a4e3a'];
+    return choices[rndInt(0, choices.length-1)];
+  }
+
+  function randomAnimationMix(){
+    const picks = [];
+    while(picks.length < 3){
+      const candidate = ANIMATIONS[rndInt(0, ANIMATIONS.length-1)];
+      if(!picks.includes(candidate)) picks.push(candidate);
+    }
+    const raw = [rnd(), rnd(), rnd()];
+    const s = raw[0]+raw[1]+raw[2];
+    const weights = raw.map(v => v/s);
+    return picks.map((name,i) => ({ name, weight: weights[i], speed: rnd(0.6,2.2), dir: Math.random()<0.5?-1:1 }));
+  }
+
+  function generateConfig(text){
+    const layers=[];
+    for(let i=0;i<LAYER_COUNT;i++){
+      const baseColor = pickSeriousColor();
+      const altColor = pickSeriousColor();
+      const patternType = rndInt(0,2);
+      let pattern = null;
+      if(patternType===1) pattern = generateNoisePattern(128, rnd(0.03,0.12), baseColor);
+      else if(patternType===2) pattern = generateStripePattern(64, baseColor, altColor);
+      layers.push({
+        offsetX: rnd(-18,18) * (i/(LAYER_COUNT-1)),
+        offsetY: rnd(-22,22) * (i/(LAYER_COUNT-1)),
+        color: baseColor,
+        strokeColor: altColor,
+        lineWidth: rnd(4,18) * (1 + i*0.3),
+        blur: rnd(0,14) * (i===0?1.8:1),
+        pattern,
+        font: FONT_FAMILIES[rndInt(0, FONT_FAMILIES.length-1)],
+        textureType: patternType
+      });
+    }
+    const bg = { type: rndInt(0,3), colors: [pickSeriousColor(), pickSeriousColor(), pickSeriousColor()] };
+    const animMix = randomAnimationMix();
+    return { text, layers, bg, animMix, createdAt: Date.now() };
+  }
+
+  // compute drawing coords using logical width/height (BASE_W, BASE_H)
+  function fitTextSize(cfg){
+    const maxWidth = BASE_W * 0.86;
+    const maxHeight = BASE_H * 0.7;
+    let fontSize = Math.min(220, Math.floor(maxHeight * 0.6));
+    ctx.save();
+    for(let i=0;i<60;i++){
+      ctx.font = `bold ${fontSize}px ${cfg.layers[0].font}`;
+      const w = ctx.measureText(cfg.text).width;
+      if(w <= maxWidth && fontSize <= maxHeight) break;
+      fontSize = Math.floor(fontSize * 0.94);
+      if(fontSize < 18) break;
+    }
+    ctx.restore();
+    return fontSize;
+  }
+
+  function drawBackground(bgCfg, tNorm){
+    const g = ctx;
+    if(bgCfg.type === 0){
+      const grd = g.createLinearGradient(0,0,BASE_W,BASE_H);
+      grd.addColorStop(0, bgCfg.colors[0]);
+      grd.addColorStop(0.5 + 0.2*Math.sin(tNorm*2*Math.PI), bgCfg.colors[1]);
+      grd.addColorStop(1, bgCfg.colors[2]);
+      g.fillStyle = grd;
+      g.fillRect(0,0,BASE_W,BASE_H);
+      g.save();
+      g.globalAlpha = 0.08;
+      g.fillStyle = generateStripePattern(120,'#ffffffa0','rgba(255,255,255,0)');
+      g.translate( Math.sin(tNorm*2*Math.PI) * 80, 0 );
+      g.fillRect(-BASE_W, -BASE_H, BASE_W*3, BASE_H*3);
+      g.restore();
+    } else if(bgCfg.type === 1){
+      const r = Math.hypot(BASE_W, BASE_H)/2;
+      const rg = g.createRadialGradient(BASE_W/2, BASE_H/2, r * (0.15 + 0.05*Math.sin(tNorm*2*Math.PI)), BASE_W/2, BASE_H/2, r);
+      rg.addColorStop(0, bgCfg.colors[0]);
+      rg.addColorStop(0.6, bgCfg.colors[1]);
+      rg.addColorStop(1, bgCfg.colors[2]);
+      g.fillStyle = rg;
+      g.fillRect(0,0,BASE_W,BASE_H);
+    } else if(bgCfg.type === 2){
+      g.fillStyle = bgCfg.colors[0];
+      g.fillRect(0,0,BASE_W,BASE_H);
+      g.save();
+      g.globalAlpha = 0.12;
+      const p = generateNoisePattern(256, 0.06, bgCfg.colors[1]);
+      g.fillStyle = p;
+      g.fillRect(0,0,BASE_W,BASE_H);
+      g.restore();
+      g.save();
+      g.globalAlpha = 0.08;
+      for(let i=0;i<6;i++){
+        const px = (i/6) * BASE_W + 60*Math.sin(tNorm*2*Math.PI*(i+1));
+        const py = BASE_H * (0.15 + 0.12*i);
+        g.beginPath();
+        g.ellipse(px, py, 120, 60 + 30*Math.sin(tNorm*2*Math.PI*(i+2)), 0, 0, 2*Math.PI);
+        g.fillStyle = bgCfg.colors[(i+2)%bgCfg.colors.length];
+        g.fill();
+      }
+      g.restore();
+    } else {
+      const grd = g.createLinearGradient(0,0,0,BASE_H);
+      grd.addColorStop(0, bgCfg.colors[0]);
+      grd.addColorStop(1, bgCfg.colors[2]);
+      g.fillStyle = grd;
+      g.fillRect(0,0,BASE_W,BASE_H);
+    }
+  }
+
+  function computeAnimTransforms(mix, tMs){
+    const t = tMs/1000;
+    const transforms = { rotate:0, translateX:0, translateY:0, scaleX:1, scaleY:1, opacity:1 };
+    for(const a of mix){
+      const w = a.weight;
+      const sp = a.speed;
+      const dir = a.dir;
+      const phase = t * sp * dir;
+      switch(a.name){
+        case 'rotate': transforms.rotate += (Math.sin(phase*2*Math.PI) * 0.08 * w); break;
+        case 'float': transforms.translateY += Math.sin(phase*2*Math.PI) * (40 * w); break;
+        case 'horiz': transforms.translateX += Math.sin(phase*2*Math.PI) * (70 * w); break;
+        case 'shake': transforms.translateX += (Math.random()*2-1) * (10 * w) * Math.sin(phase*2*Math.PI); transforms.translateY += (Math.random()*2-1) * (10 * w) * Math.cos(phase*2*Math.PI); break;
+        case 'stretch': transforms.scaleX += (0.35 * Math.sin(phase*2*Math.PI)) * w; transforms.scaleY -= (0.25 * Math.sin(phase*2*Math.PI)) * w; break;
+        case 'blink': transforms.opacity *= (0.6 + 0.4 * Math.abs(Math.sin(phase*2*Math.PI * 1.5))) ** (1 + w*2); break;
+        case 'fly': transforms.translateX += Math.sin(phase*2*Math.PI) * (80 * w); transforms.translateY += Math.cos(phase*2*Math.PI) * (160 * w) - (60 * w * Math.sin(phase*2*Math.PI*0.5)); transforms.scaleX *= 0.98 + 0.06 * Math.sin(phase*2*Math.PI) * w; transforms.scaleY *= 0.98 + 0.06 * Math.cos(phase*2*Math.PI) * w; break;
+        case 'wobble': transforms.rotate += Math.sin(phase*2*Math.PI) * (0.03 * w); transforms.translateX += Math.sin(phase*2*Math.PI * 2) * (20 * w); break;
+      }
+    }
+    return transforms;
+  }
+
+  function renderFrame(timestamp){
+    if(!startTime) startTime = timestamp;
+    const elapsed = (timestamp - startTime) % DURATION;
+    const tNorm = elapsed / DURATION;
+
+    ctx.clearRect(0,0,BASE_W,BASE_H);
+
+    drawBackground(animationConfig.bg, tNorm);
+    const transforms = computeAnimTransforms(animationConfig.animMix, elapsed);
+    const baseFontSize = fitTextSize(animationConfig);
+    const centerX = BASE_W/2;
+    const centerY = BASE_H/2;
+
+    // draw layers
+    for(let i=0;i<animationConfig.layers.length;i++){
+      const layer = animationConfig.layers[i];
+      const layerOffsetX = layer.offsetX;
+      const layerOffsetY = layer.offsetY + (i * 2);
+
+      ctx.save();
+
+      // move to center, apply global transforms, then layer offsets
+      ctx.translate(centerX, centerY);
+      ctx.translate(transforms.translateX, transforms.translateY);
+      ctx.rotate(transforms.rotate);
+      ctx.scale(transforms.scaleX, transforms.scaleY);
+      ctx.translate(layerOffsetX, layerOffsetY);
+
+      ctx.globalAlpha = 1 * transforms.opacity;
+      if(layer.blur > 0){
+        ctx.shadowColor = layer.strokeColor + "66";
+        ctx.shadowBlur = layer.blur;
+      } else ctx.shadowBlur = 0;
+
+      const sizeMultiplier = 1 + i*0.02;
+      ctx.font = `${layerOffsetY < 0 ? '700' : '800'} ${Math.floor(baseFontSize * sizeMultiplier)}px ${layer.font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.lineWidth = layer.lineWidth;
+      ctx.strokeStyle = layer.strokeColor;
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+
+      let fillStyle = null;
+      const metrics = ctx.measureText(animationConfig.text);
+      const textWidth = metrics.width;
+      const textHeight = Math.floor(baseFontSize * sizeMultiplier);
+
+      if(layer.textureType === 0){
+        const g = ctx.createLinearGradient(-textWidth/2, -textHeight/2, textWidth/2, textHeight/2);
+        g.addColorStop(0, layer.color);
+        g.addColorStop(1, layer.strokeColor);
+        fillStyle = g;
+      } else if(layer.textureType === 1 && layer.pattern){
+        fillStyle = layer.pattern;
+      } else if(layer.textureType === 2){
+        const g = ctx.createLinearGradient(-textWidth/2, -textHeight/2, textWidth/2, textHeight/2);
+        g.addColorStop(0, layer.color);
+        g.addColorStop(1, layer.strokeColor);
+        fillStyle = g;
+      } else fillStyle = layer.color;
+
+      ctx.fillStyle = fillStyle;
+      ctx.lineWidth = Math.max(1, layer.lineWidth * (1 + i*0.2));
+      ctx.strokeText(animationConfig.text, 0, 0);
+      ctx.fillText(animationConfig.text, 0, 0);
+
+      if(i === animationConfig.layers.length - 1){
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.12 * transforms.opacity;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(animationConfig.text, -Math.abs(Math.sin(tNorm*2*Math.PI))*4, -Math.abs(Math.cos(tNorm*2*Math.PI))*6);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    rafId = requestAnimationFrame(renderFrame);
+  }
+
+  function startAnimation(){
+    if(rafId) cancelAnimationFrame(rafId);
+    startTime = null;
+    rafId = requestAnimationFrame(renderFrame);
+  }
+
+  function stopAnimation(){
+    if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  createBtn.addEventListener('click', () => {
+    const txt = (input.value || '').trim();
+    if(!txt){ alert('Escribe una palabra o frase antes de crear.'); return; }
+    if(recording.active){ stopRecording(true); }
+    animationConfig = generateConfig(txt);
+    startAnimation();
+  });
+
+  function downloadBlob(blob, filename='animacion_canvas.webm'){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function stopRecording(abort=false){
+    if(!recording.active) return;
+    const rec = recording.recorder;
+    if(abort){
+      try{ rec.stop(); }catch(e){}
+      recording.chunks = [];
+      recording.active = false;
+      downloadBtn.textContent = 'Descargar video';
+      return;
+    }
+    rec.onstop = () => {
+      const blob = new Blob(recording.chunks, { type: 'video/webm' });
+      downloadBlob(blob, `animacion_${Date.now()}.webm`);
+      recording.chunks = [];
+      recording.recorder = null;
+      recording.active = false;
+      downloadBtn.textContent = 'Descargar video';
+    };
+    rec.stop();
+  }
+
+  downloadBtn.addEventListener('click', async () => {
+    if(!animationConfig){ alert('Primero pulsa Crear para generar la animación que quieres descargar.'); return; }
+    if(recording.active){
+      if(confirm('Hay una grabación en curso. ¿Cancelar y reiniciar?')) stopRecording(true); else return;
+    }
+    const fps = 30;
+    const stream = canvas.captureStream(fps);
+    const options = { mimeType: 'video/webm;codecs=vp9' };
+    try {
+      const mediaRecorder = new MediaRecorder(stream, options);
+      recording.recorder = mediaRecorder;
+      recording.chunks = [];
+      recording.active = true;
+      mediaRecorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) recording.chunks.push(e.data); };
+      mediaRecorder.start(250);
+      downloadBtn.textContent = 'Grabando...';
+      setTimeout(() => { if(recording.active) stopRecording(false); }, DURATION + 250);
+    } catch(err){
+      console.error('MediaRecorder error:', err);
+      alert('Tu navegador no soporta MediaRecorder con el codec solicitado. Prueba en Chrome/Edge/Firefox en escritorio o usa "Grabar pantalla".');
+    }
+  });
+
+  // DPI / scale handling: set canvas backing store to devicePixelRatio and map drawing to logical coords BASE_W x BASE_H
+  function adjustDPI(){
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = Math.round(BASE_W * ratio);
+    canvas.height = Math.round(BASE_H * ratio);
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    // reset transform and scale so that drawing uses logical coordinates
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  // initialize
+  adjustDPI();
+  window.addEventListener('resize', () => { adjustDPI(); });
+
+  // init default anim
+  animationConfig = generateConfig(input.value || 'Casa');
+  startAnimation();
+  input.addEventListener('keydown', (e) => { if(e.key === 'Enter') createBtn.click(); });
+
+})();
+</script>
+</body>
+</html>
