@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Animador 3D de Texto - Vertical (Corregido V2)</title>
+<style>
+  :root{
+    --bg-dark: #101c2c; /* Azul oscuro de fondo */
+    --ui-bg: #111827;
+    --btn-bg: #1c52b5; /* Azul principal del botón */
+    --btn-text: #e6eef6;
+    --border-color: #ffc107; /* Amarillo para bordes */
+  }
+  /* Estilo general del contenedor */
+  html,body{ 
+    height:100%; 
+    margin:0; 
+    background: linear-gradient(180deg,var(--bg-dark), #08101a); 
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
+    color: var(--btn-text); 
+  }
+  .app{ 
+    display:flex; 
+    flex-direction:column; 
+    height:100dvh; 
+    width:100vw; 
+    gap:8px; 
+    padding:8px; 
+    box-sizing:border-box; 
+    /* Borde amarillo en el contenedor principal */
+    border: 3px solid var(--border-color); 
+    border-radius: 16px;
+  }
+  .canvas-wrap{ 
+    position:relative; 
+    flex:1 1 auto; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    border-radius:12px; 
+    overflow:hidden; 
+    background:#05060a; 
+  }
+  canvas{ 
+    width:100%; 
+    height:100%; 
+    display:block; 
+    background: transparent; 
+  }
+
+  /* Nuevo contenedor de controles para mantener el orden de apilamiento */
+  .controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 4px; 
+  }
+
+  /* El campo de texto ahora está arriba de los botones */
+  .input-area{ 
+    display:flex; 
+    gap:8px; 
+    align-items:center; 
+    width:100%; 
+  }
+  
+  /* Estilo para el campo de texto (textarea) */
+  .input-area textarea{ 
+    flex:1; 
+    padding:14px 12px; 
+    border-radius:12px; 
+    /* Borde amarillo para el campo de texto */
+    border:3px solid var(--border-color); 
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); 
+    color:var(--btn-text); 
+    font-size:16px; 
+    outline:none; 
+    resize: none; 
+    min-height: 48px;
+    line-height: 1.2;
+    box-shadow: 0 0 8px rgba(255,193,7,0.4); /* Sombra para resaltar el borde */
+  }
+
+  /* Contenedor de botones (Debajo del campo de texto) */
+  .controls{ 
+    display:flex; 
+    gap:8px; 
+    align-items:center; 
+    justify-content:space-between; 
+    flex-direction: row-reverse; 
+  }
+
+  /* Estilo de botones: Azul con borde amarillo */
+  button{ 
+    border:3px solid var(--border-color); /* Borde amarillo */
+    border-radius:12px; 
+    padding:12px 14px; 
+    background:var(--btn-bg); 
+    color:var(--btn-text); 
+    font-weight:700; 
+    box-shadow: 0 4px 12px rgba(28,82,181,0.6); /* Sombra azul para profundidad */
+    cursor:pointer; 
+    transition: background 0.2s;
+    flex: 1 1 auto; 
+  }
+  button:hover { background: #1a489c; } 
+  
+  /* Botón grande */
+  .big-create{ 
+    background: linear-gradient(180deg, #1c52b5, #144095); /* Gradiente azul */
+    font-size:18px; 
+    padding:14px 18px; 
+  }
+  /* Botón pequeño */
+  .small{ padding:12px 14px; font-size:16px; }
+
+  .note{ font-size:12px; color:#98a0ab; text-align:center; margin-top:6px; }
+  @media(min-width:760px){ .app{ max-width:420px; margin:12px auto; height:95vh; } }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mainCanvas" width="720" height="1280" aria-label="Pantalla de animación"></canvas>
+    </div>
+
+    <div class="controls-container"> 
+      
+      <div class="input-area">
+        <textarea id="textInput" placeholder="Escribe una palabra o frase..." maxlength="60">Texto de Prueba</textarea>
+      </div>
+
+      <div class="controls">
+        <button id="createBtn" class="big-create">Crear</button>
+        <button id="downloadBtn" class="small">Descargar video</button>
+      </div>
+
+      <div class="note">
+        Para salto de línea, use la tecla **Enter** en el teclado virtual o **Shift + Enter** en escritorio.
+      </div>
+    </div>
+  </div>
+
+<script>
